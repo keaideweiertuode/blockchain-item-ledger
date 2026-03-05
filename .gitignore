@@ -15,5 +15,7 @@ keys/
 images/
 uploads/
 
-# 忽略 Mac 系统文件 (如果你用 Mac)
-.DS_Store
+# 忽略日志文件
+logs/
+
+

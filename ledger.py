@@ -25,7 +25,7 @@ def sha256_text(text):
     return hashlib.sha256(text.encode()).hexdigest()
 
 def add_record(category, name, quantity, price, note, image_path):
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now().isoformat()
     image_hash = sha256_file(image_path)
 
     # 复制图片并重命名为hash
@@ -58,6 +58,17 @@ def add_record(category, name, quantity, price, note, image_path):
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (timestamp, category, name, quantity, price, note, image_hash, previous_hash, record_hash, signature))
 
+    
     conn.commit()
     conn.close()
     return record_hash
+def update_status(target_hash, action="CONSUMED"):
+    """区块链状态更新 (追加新区块，不破坏历史)"""
+    # 巧妙的幽灵区块策略：生成一个虚拟图片，完美满足区块链强制图片哈希的规则
+    dummy_path = f"{IMAGE_DIR}/system_action.jpg"
+    if not os.path.exists(dummy_path):
+        with open(dummy_path, "wb") as f:
+            f.write(b"SYSTEM_ACTION_BLOCK")
+
+    # 写入一条特殊分类的记录 (类别为 SYSTEM)
+    return add_record("SYSTEM", "STATUS_UPDATE", 0, 0.0, f"[{action}] {target_hash}", dummy_path)

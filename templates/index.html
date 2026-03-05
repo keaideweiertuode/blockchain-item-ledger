@@ -3,25 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blockchain Item Ledger</title>
+    <title>Blockchain Item Ledger v0.3</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         body { background-color: #f8f9fa; }
         .hash-text { font-family: monospace; font-size: 0.85em; color: #6c757d; word-break: break-all; }
         .blockchain-link { text-align: center; color: #adb5bd; margin: -10px 0; font-size: 1.5rem; }
         .search-bar { background-color: #ffffff; padding: 15px; border-radius: 8px; box-shadow: 0 .125rem .25rem rgba(0,0,0,.075); margin-bottom: 20px; }
+        .item-consumed { opacity: 0.65; }
+        .img-consumed { filter: grayscale(100%); }
     </style>
 </head>
 <body>
-<div class="container py-5">
-    <div class="row mb-4 align-items-center">
-        <div class="col-md-8">
-            <h1 class="fw-bold text-primary">📦 Blockchain Item Ledger</h1>
-            <p class="text-muted">Self-verifying, tamper-proof inventory system.</p>
+<div class="container py-4">
+    <div class="row mb-3 align-items-center">
+        <div class="col-md-5">
+            <h2 class="fw-bold text-primary">📦 Blockchain Item Ledger</h2>
         </div>
-        <div class="col-md-4 text-end">
-            <a href="/export" class="btn btn-success shadow-sm me-2">📊 Export CSV</a>
-            <a href="/verify_chain" class="btn btn-warning shadow-sm">🛡️ Verify Entire Blockchain</a>
+        <div class="col-md-7 text-end">
+            <button class="btn btn-info shadow-sm me-2 text-white" data-bs-toggle="modal" data-bs-target="#qrScannerModal">📷 Scan QR</button>
+            <a href="/export" class="btn btn-success shadow-sm me-2">📊 Export</a>
+            <a href="/verify_chain" class="btn btn-warning shadow-sm">🛡️ Verify Chain</a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card bg-dark text-white shadow-sm border-0">
+                <div class="card-body py-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0 text-secondary">Active Assets Value</h6>
+                        <h3 class="mb-0 fw-bold">${{ "%.2f"|format(dash_data.total_value) }}</h3>
+                    </div>
+                    <div class="text-end">
+                        <h6 class="mb-0 text-secondary">Active Items</h6>
+                        <h3 class="mb-0 fw-bold">{{ dash_data.total_items }}</h3>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -30,7 +50,7 @@
         {% for category, message in messages %}
           <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
             {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           </div>
         {% endfor %}
       {% endif %}
@@ -42,32 +62,14 @@
                 <div class="card-header bg-white fw-bold">➕ Register New Item</div>
                 <div class="card-body">
                     <form action="/add" method="POST" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <label class="form-label">Category</label>
-                            <input type="text" class="form-control" name="category" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Item Name</label>
-                            <input type="text" class="form-control" name="name" required>
-                        </div>
+                        <div class="mb-3"><label class="form-label">Category</label><input type="text" class="form-control" name="category" required></div>
+                        <div class="mb-3"><label class="form-label">Item Name</label><input type="text" class="form-control" name="name" required></div>
                         <div class="row mb-3">
-                            <div class="col">
-                                <label class="form-label">Quantity</label>
-                                <input type="number" class="form-control" name="quantity" required>
-                            </div>
-                            <div class="col">
-                                <label class="form-label">Price</label>
-                                <input type="number" step="0.01" class="form-control" name="price" required>
-                            </div>
+                            <div class="col"><label class="form-label">Quantity</label><input type="number" class="form-control" name="quantity" required></div>
+                            <div class="col"><label class="form-label">Price</label><input type="number" step="0.01" class="form-control" name="price" required></div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Note</label>
-                            <textarea class="form-control" name="note" rows="2"></textarea>
-                        </div>
-                        <div class="mb-4">
-                            <label class="form-label">Item Image</label>
-                            <input type="file" class="form-control" name="image" accept="image/*" required>
-                        </div>
+                        <div class="mb-3"><label class="form-label">Note</label><textarea class="form-control" name="note" rows="2"></textarea></div>
+                        <div class="mb-4"><label class="form-label">Item Image</label><input type="file" class="form-control" name="image" accept="image/*" required></div>
                         <button type="submit" class="btn btn-primary w-100">Sign & Add to Blockchain</button>
                     </form>
                 </div>
@@ -75,90 +77,133 @@
         </div>
 
         <div class="col-md-8">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="mb-0">Ledger Chain</h4>
-                {% if current_search or current_category %}
-                    <a href="/" class="btn btn-sm btn-outline-danger">✖ Reset Filter</a>
-                {% endif %}
-            </div>
-            
             <div class="search-bar">
                 <form action="/" method="GET" class="mb-0">
                     <div class="row g-2">
                         <div class="col-md-4">
                             <select name="category" class="form-select">
                                 <option value="">All Categories</option>
-                                {% for cat in categories %}
-                                    <option value="{{ cat }}" {% if cat == current_category %}selected{% endif %}>
-                                        {{ cat }}
-                                    </option>
-                                {% endfor %}
+                                {% for cat in categories %}<option value="{{ cat }}" {% if cat == current_category %}selected{% endif %}>{{ cat }}</option>{% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <input type="text" name="search" class="form-control" placeholder="Search item name..." value="{{ current_search }}">
-                        </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-dark w-100">🔍 Search</button>
-                        </div>
+                        <div class="col-md-6"><input type="text" name="search" class="form-control" placeholder="Search item name..." value="{{ current_search }}"></div>
+                        <div class="col-md-2"><button type="submit" class="btn btn-dark w-100">🔍 Search</button></div>
                     </div>
                 </form>
             </div>
-            
+
             {% for row in records %}
-                <div class="card shadow-sm border-0 mb-3">
+                {% set is_consumed = row.record_hash in dash_data.consumed_hashes %}
+                <div class="card shadow-sm border-0 mb-3 {% if is_consumed %}bg-light item-consumed{% endif %}">
                     <div class="card-body d-flex">
-                        <img src="/images/{{ row.image_hash }}.jpg" alt="Item Image" class="rounded me-3" style="width: 100px; height: 100px; object-fit: cover;">
+                        <img src="/images/{{ row.image_hash }}.jpg" alt="Image" class="rounded me-3 {% if is_consumed %}img-consumed{% endif %}" style="width: 100px; height: 100px; object-fit: cover;">
                         <div class="flex-grow-1 overflow-hidden">
-                            <h5 class="mb-1 fw-bold text-truncate">{{ row.item_name }} <span class="badge bg-secondary float-end">Qty: {{ row.quantity }}</span></h5>
+                            <h5 class="mb-1 fw-bold text-truncate">
+                                {% if is_consumed %}<s>{{ row.item_name }}</s> <span class="badge bg-danger ms-2">Sold/Consumed</span>
+                                {% else %}{{ row.item_name }}{% endif %}
+                                <span class="badge bg-secondary float-end">Qty: {{ row.quantity }}</span>
+                            </h5>
                             <p class="mb-1 text-muted small"><strong>Cat:</strong> {{ row.category }} | <strong>Price:</strong> ${{ row.price }} | <strong>Date:</strong> {{ row.timestamp[:19] }}</p>
                             <p class="mb-1 small text-truncate">{{ row.note }}</p>
                             <hr class="my-2">
-                            <div class="hash-text">
-                                <strong>Prev Hash:</strong> {{ row.previous_hash }}<br>
+                            <div class="hash-text mb-2">
                                 <strong>Block Hash:</strong> {{ row.record_hash }}
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="/qr/{{ row.record_hash }}" target="_blank" class="btn btn-sm btn-outline-dark">🔲 Show QR Code</a>
+                                {% if not is_consumed %}
+                                <form action="/consume/{{ row.record_hash }}" method="POST" onsubmit="return confirm('Are you sure you want to mark this item as sold/consumed? This action is recorded on the blockchain.');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">🗑️ Mark Consumed</button>
+                                </form>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                 </div>
-                
-                {% if not loop.last and not current_search and not current_category %}
-                    <div class="blockchain-link">🔗</div>
-                {% elif not loop.last and (current_search or current_category) %}
-                    <div style="height: 10px;"></div>
-                {% endif %}
-
+                {% if not loop.last and not current_search and not current_category %}<div class="blockchain-link">🔗</div>{% endif %}
             {% else %}
                 <div class="alert alert-info shadow-sm">No records found. Try adjusting your search or add a new item!</div>
             {% endfor %}
 
             {% if total_pages > 1 %}
-            <nav aria-label="Page navigation" class="mt-4">
-                <ul class="pagination justify-content-center">
-                    <li class="page-item {% if current_page <= 1 %}disabled{% endif %}">
-                        <a class="page-link" href="/?page={{ current_page - 1 }}&search={{ current_search }}&category={{ current_category }}" aria-label="Previous">
-                            <span aria-hidden="true">&laquo; Prev</span>
-                        </a>
-                    </li>
-                    
-                    {% for p in range(1, total_pages + 1) %}
-                    <li class="page-item {% if p == current_page %}active{% endif %}">
-                        <a class="page-link" href="/?page={{ p }}&search={{ current_search }}&category={{ current_category }}">{{ p }}</a>
-                    </li>
-                    {% endfor %}
-                    
-                    <li class="page-item {% if current_page >= total_pages %}disabled{% endif %}">
-                        <a class="page-link" href="/?page={{ current_page + 1 }}&search={{ current_search }}&category={{ current_category }}" aria-label="Next">
-                            <span aria-hidden="true">Next &raquo;</span>
-                        </a>
-                    </li>
-                </ul>
-            </nav>
+            <nav class="mt-4"><ul class="pagination justify-content-center">
+                <li class="page-item {% if current_page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="/?page={{ current_page - 1 }}&search={{ current_search }}&category={{ current_category }}">&laquo; Prev</a>
+                </li>
+                {% for p in range(1, total_pages + 1) %}
+                <li class="page-item {% if p == current_page %}active{% endif %}">
+                    <a class="page-link" href="/?page={{ p }}&search={{ current_search }}&category={{ current_category }}">{{ p }}</a>
+                </li>
+                {% endfor %}
+                <li class="page-item {% if current_page >= total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="/?page={{ current_page + 1 }}&search={{ current_search }}&category={{ current_category }}">Next &raquo;</a>
+                </li>
+            </ul></nav>
             {% endif %}
-
+            
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="qrScannerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">📷 Scan Item QR Code</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="closeScannerBtn"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="reader" style="width: 100%;"></div>
+                <p class="text-muted mt-2 small">Please point your camera at the Ledger QR Code.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    let html5QrcodeScanner;
+
+    // 当模态框打开时，启动摄像头
+    document.getElementById('qrScannerModal').addEventListener('shown.bs.modal', function () {
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.clear();
+        }
+        // 配置扫码框大小和帧率
+        html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", { fps: 10, qrbox: {width: 250, height: 250} }, /* verbose= */ false);
+        
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    });
+
+    // 当模态框关闭时，关闭摄像头，防止后台持续耗电和占用
+    document.getElementById('qrScannerModal').addEventListener('hidden.bs.modal', function () {
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.clear().catch(error => {
+                console.error("Failed to clear html5QrcodeScanner. ", error);
+            });
+        }
+    });
+
+    function onScanSuccess(decodedText, decodedResult) {
+        // 扫码成功后的逻辑
+        if(decodedText.includes("Ledger Hash:\n")) {
+            // 提取出 Hash
+            let targetHash = decodedText.split("Ledger Hash:\n")[1].trim();
+            
+            // 关闭摄像头并带参跳转，实现自动搜索定位
+            html5QrcodeScanner.clear().then(() => {
+                window.location.href = "/?search=" + targetHash;
+            });
+        } else {
+            alert("Invalid QR Code: Not a Ledger Item.");
+        }
+    }
+
+    function onScanFailure(error) {
+        // 扫码过程中的持续错误（通常是没对准），静默处理即可
+    }
+</script>
 </body>
 </html>
