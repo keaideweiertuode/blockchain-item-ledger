@@ -8,7 +8,7 @@ __pycache__/
 *.pyc
 
 # 🛡️ 极其重要：忽略数据库和密钥！绝不能泄露！
-.env
+.env/
 database/
 keys/
 
