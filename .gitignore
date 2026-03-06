@@ -8,13 +8,14 @@ __pycache__/
 *.pyc
 
 # 🛡️ 极其重要：忽略数据库和密钥！绝不能泄露！
-.env/
+.env
 database/
 keys/
 
 # 忽略用户上传的图片和临时文件
 images/
 uploads/
+说明.txt
 
 # 忽略日志文件
 logs/
